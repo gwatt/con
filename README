@@ -1,0 +1,3 @@
+con is a program for connecting to serial devices. It is similar in function
+to minicom, but it buffers input by lines instead of sending each character
+as you type it.
