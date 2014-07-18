@@ -8,6 +8,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#define F_SETSIG	10
 
 /* Maps baudrates to the B[0-9]+ values defined in termios.h */
 int baudval(int baudrate);
@@ -25,7 +26,7 @@ int main(int argc, char *argv[]) {
 
 	sa.sa_sigaction = &sigio_handler;
 	sa.sa_flags = SA_SIGINFO;
-	sigemptyset(&sa.sa_mask);
+	sigfillset(&sa.sa_mask);
 	if (sigaction(SIGIO, &sa, NULL) != 0) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		goto _return;
@@ -40,6 +41,9 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		goto _return;
 	}
+	fcntl(fd, F_SETOWN, getpid());
+	fcntl(fd, F_SETFL, FASYNC);
+	fcntl(fd, F_SETSIG, SIGIO);
 	if (isatty(fd)) {
 		tcgetattr(fd, &o);
 		n.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
@@ -77,8 +81,20 @@ _return:
 }
 
 int con(int fd) {
+	char buf[256];
+	int c;
 	int retval = EXIT_FAILURE;
 
+	do {
+		c = read(STDIN_FILENO, buf, sizeof buf);
+		if (c == -1) {
+			if (errno == EINTR) continue;
+			else goto _return;
+		}
+		write(fd, buf, c);
+	} while (c != 0);
+	retval = EXIT_SUCCESS;
+_return:
 	return retval;
 }
 
@@ -107,4 +123,13 @@ int baudval(int baudrate) {
 }
 
 void sigio_handler(int signum, siginfo_t *si, void *context) {
+	char buf[256];
+	int c;
+
+	if (si->si_code == POLL_IN) {
+		do {
+			c = read(si->si_fd, buf, sizeof buf);
+			write(STDOUT_FILENO, buf, c);
+		} while (c == sizeof buf);
+	}
 }
