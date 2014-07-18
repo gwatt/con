@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 	if (isatty(fd)) {
 		tcgetattr(fd, &o);
 		n.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
-		n.c_iflag = IGNPAR | ICRNL;
+		n.c_iflag = IGNPAR;
 		n.c_oflag = 0;
 		n.c_lflag = ICANON;
 		n.c_cc[VMIN] = 1;
@@ -128,7 +128,7 @@ void sigio_handler(int signum, siginfo_t *si, void *context) {
 	char buf[256];
 	int c;
 
-	if (si->si_code == POLL_IN) {
+	if (si->si_code == POLL_IN || si->si_code == POLL_MSG || si->si_code == POLL_PRI) {
 		do {
 			c = read(si->si_fd, buf, sizeof buf);
 			write(STDOUT_FILENO, buf, c);
