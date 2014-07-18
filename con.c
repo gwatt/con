@@ -1,4 +1,5 @@
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -25,7 +26,7 @@ int main(int argc, char *argv[]) {
 	struct termios o, n;
 
 	sa.sa_sigaction = &sigio_handler;
-	sa.sa_flags = SA_SIGINFO;
+	sa.sa_flags = SA_SIGINFO | SA_RESTART;
 	sigfillset(&sa.sa_mask);
 	if (sigaction(SIGIO, &sa, NULL) != 0) {
 		fprintf(stderr, "%s\n", strerror(errno));
@@ -91,6 +92,7 @@ int con(int fd) {
 			if (errno == EINTR) continue;
 			else goto _return;
 		}
+		while (c > 0 && isspace(buf[c-1])) c--;
 		write(fd, buf, c);
 	} while (c != 0);
 	retval = EXIT_SUCCESS;
