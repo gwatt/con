@@ -45,38 +45,43 @@ int main(int argc, char *argv[]) {
 	fcntl(fd, F_SETOWN, getpid());
 	fcntl(fd, F_SETFL, FASYNC);
 	fcntl(fd, F_SETSIG, SIGIO);
-	if (isatty(fd)) {
-		tcgetattr(fd, &o);
-		n.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
-		n.c_iflag = IGNPAR;
-		n.c_oflag = 0;
-		n.c_lflag = ICANON;
-		n.c_cc[VMIN] = 1;
-		n.c_cc[VTIME] = 0;
-		if (argc == 3) {
-			if (cfsetspeed(&n, baudval(atoi(argv[2]))) != 0) {
-				fprintf(stderr, "%s\n", strerror(errno));
-				goto _close_fd;
-			}
-		} else {
-			cfsetospeed(&n, cfgetospeed(&o));
-			cfsetispeed(&n, cfgetispeed(&n));
-		}
-		tcflush(fd, TCIOFLUSH);
-		tcsetattr(fd, TCSANOW, &n);
-	}
+	if (isatty(fd)) con_tty(fd, baud);
 
 	retval = con(fd);
-
-_reset_tty:
-	if (isatty(fd)) {
-		tcflush(fd, TCIOFLUSH);
-		tcsetattr(fd, TCSANOW, &o);
-	}
 
 _close_fd:
 	close(fd);
 
+_return:
+	return retval;
+}
+
+int con_tty(int fd, int baud) {
+	int retval = EXIT_FAILURE;
+	struct termios n, o;
+	if (tcgetattr(fd, &o) != 0) {
+		fprintf(stderr, "%s\n", strerror(errno));
+		goto _return;
+	}
+	n.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
+	n.c_iflag = IGNPAR;
+	n.c_oflag = 0;
+	n.c_lflag = ICANON;
+	n.c_cc[VMIN] = 1;
+	n.c_cc[VTIME] = 0;
+	baud = baudval(baud);
+	if (baud >= 0) cfsetspeed(fd, baud);
+	else {
+		cfsetispeed(&n, cfgetispeed(&o));
+		cfsetospeed(&n, cfgetospeed(&o));
+	}
+	tcflush(fd, TCIOFLUSH);
+	tcsetattr(fd, TCSANOW, &n);
+
+	retval = con(fd);
+_reset_tty:
+	tcflush(fd, TCIOFLUSH);
+	tcsetattr(fd, TCSANOW, &o);
 _return:
 	return retval;
 }
