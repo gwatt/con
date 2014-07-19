@@ -47,8 +47,7 @@ int main(int argc, char *argv[]) {
 	fcntl(fd, F_SETFL, FASYNC);
 	fcntl(fd, F_SETSIG, SIGIO);
 	if (isatty(fd)) con_tty(fd, baud);
-
-	retval = con(fd);
+	else retval = con(fd);
 
 _close_fd:
 	close(fd);
