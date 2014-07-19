@@ -15,15 +15,15 @@
 int baudval(int baudrate);
 
 int con(int fd);
+int con_tty(int fd, int baud);
 
 void sigio_handler(int signum, siginfo_t *si, void *context);
 
 int main(int argc, char *argv[]) {
-	int baud;
-	int fd;
+	int baud = -1;
+	int fd = -1;
 	int retval = EXIT_FAILURE;
 	struct sigaction sa;
-	struct termios o, n;
 
 	sa.sa_sigaction = &sigio_handler;
 	sa.sa_flags = SA_SIGINFO | SA_RESTART;
@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Usage:\ncon /path/to/file [baudrate]\n");
 		goto _return;
 	}
+	if (argc == 3) baud = atoi(argv[2]);
 	fd = open(argv[1], O_RDWR, O_NOCTTY | O_NONBLOCK);
 	if (fd < 0) {
 		fprintf(stderr, "%s\n", strerror(errno));
@@ -70,7 +71,7 @@ int con_tty(int fd, int baud) {
 	n.c_cc[VMIN] = 1;
 	n.c_cc[VTIME] = 0;
 	baud = baudval(baud);
-	if (baud >= 0) cfsetspeed(fd, baud);
+	if (baud >= 0) cfsetspeed(&n, baud);
 	else {
 		cfsetispeed(&n, cfgetispeed(&o));
 		cfsetospeed(&n, cfgetospeed(&o));
